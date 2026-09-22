@@ -1,0 +1,18 @@
+# 비밀·세션 (절대 공유/커밋 금지)
+.env
+.pw-profile/
+
+# 데이터·산출물 (전부 data/ 하위로 이동됨)
+# 원장 2개 + Notion DB 매핑은 GitHub Actions 증분 판단·적재에 필요해서 올린다.
+# data/ 로 통째로 막으면 안쪽 예외(!)가 안 먹으므로 data/* 로 쓴다.
+data/*
+!data/instagram_posts.json
+!data/posts.json
+!data/notion_map.json
+logs/
+
+# DOM 덤프
+*_dom.html
+*_dom.png
+
+__pycache__/

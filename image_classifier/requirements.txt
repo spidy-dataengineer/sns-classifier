@@ -1,0 +1,18 @@
+# image_classifier 의존성
+# 설치:  pip install -r requirements.txt
+# 검증 환경: Windows 11 / Python 3.13.5 (자세한 재현 지침은 RUNBOOK.md)
+
+# --- Phase 1: 추출 (로컬 무료) ---
+playwright==1.61.0        # 저장글 수집(전용 크롬 프로필). 설치 후 시스템 Chrome 재사용
+paddleocr==3.7.0          # 이미지 OCR (lang="korean" 이 한국어+영어 처리)
+paddlepaddle==3.3.1       # PaddleOCR 백엔드. ⚠️ enable_mkldnn=False 필수(RUNBOOK §5)
+Pillow>=10.0.0            # 이미지 리사이즈/필터
+faster-whisper==1.2.1     # 영상 자막(로컬 STT, PyTorch 불필요)
+imageio-ffmpeg==0.6.0     # ffmpeg 번들(DASH/HLS → 오디오 추출)
+pypinyin>=0.51.0          # 한자 → 병음(성조) 변환 (릴스 프레임 OCR 보강)
+
+# --- Phase 2 (구버전 API 경로: 선택) ---
+google-genai>=1.0.0      # Gemini 비전 (구버전 분류 백엔드)
+anthropic>=0.97.0        # Claude 비전 (구버전 보조 백엔드)
+pandas>=2.0.0            # 정확도 집계(evaluate.py)
+python-dotenv>=1.0.0     # .env 로드

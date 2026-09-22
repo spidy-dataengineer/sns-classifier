@@ -1,0 +1,189 @@
+name: daily-sns
+
+# 지금은 수동 실행만 한다. probe(각 플랫폼 요청 1회)가 통과하면 아래 schedule 을 추가한다.
+#   schedule:
+#     - cron: "0 22 * * *"   # 매일 07:00 KST (cron 은 UTC)
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "probe = LinkedIn·Instagram 에 요청 1회씩만 / full = 전체 파이프라인"
+        type: choice
+        options: [probe, full]
+        default: probe
+
+permissions:
+  contents: write   # 원장 commit·push
+  actions: write    # Instagram 이 거부하면 이 workflow 를 끈다
+
+concurrency:
+  group: daily-sns
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: inputs.mode == 'probe'
+    runs-on: ubuntu-latest
+    env:
+      IG_COOKIE: ${{ secrets.IG_COOKIE }}
+      LI_COOKIE: ${{ secrets.LI_COOKIE }}
+    steps:
+      - name: 0. cookie 길이 확인 (값은 찍지 않음)
+        run: |
+          python3 -c "import os; print({k: len(os.environ.get(k,'')) for k in ('IG_COOKIE','LI_COOKIE')})"
+          test -n "$IG_COOKIE" && test -n "$LI_COOKIE"
+
+      - name: 1. LinkedIn 요청 1회
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys, urllib.error, urllib.parse, urllib.request
+
+          UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+          QID = "voyagerSearchDashClusters.e438ab99259203e9c1cd3f358e217282"
+
+          hdr = os.environ["LI_COOKIE"]
+          ck = dict(p.strip().split("=", 1) for p in hdr.split(";") if "=" in p)
+          print("cookie 개수:", len(ck), "| li_at 있음:", "li_at" in ck)
+
+          variables = "(start:0,query:(flagshipSearchIntent:SEARCH_MY_ITEMS_SAVED_POSTS))"
+          url = ("https://www.linkedin.com/voyager/api/graphql?variables="
+                 + urllib.parse.quote(variables, safe="(),:") + "&queryId=" + QID)
+          req = urllib.request.Request(url, headers={
+              "Cookie": hdr,
+              "csrf-token": ck.get("JSESSIONID", "").strip('"'),
+              "User-Agent": UA,
+              "Accept": "application/vnd.linkedin.normalized+json+2.1",
+              "x-restli-protocol-version": "2.0.0",
+              "x-li-lang": "en_US",
+              "Referer": "https://www.linkedin.com/my-items/saved-posts/",
+          })
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  data = json.loads(r.read().decode("utf-8"))
+          except urllib.error.HTTPError as e:
+              print("HTTP", e.code, "| 본문 앞 200자:",
+                    e.read(2000).decode("utf-8", "replace")[:200])
+              sys.exit(1)
+          n = len([x for x in (data.get("included") or [])
+                   if "EntityResultViewModel" in (x.get("$type") or "")])
+          print("HTTP 200 | saved post 항목 수:", n)
+          EOF
+
+      # LinkedIn 이 200 일 때만 실행된다(앞 단계 실패 시 건너뜀).
+      - name: 2. Instagram 요청 1회 (count=1, 페이지 넘기기 없음)
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys, urllib.error, urllib.request
+
+          UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+          hdr = os.environ["IG_COOKIE"]
+          ck = dict(p.strip().split("=", 1) for p in hdr.split(";") if "=" in p)
+          print("cookie 개수:", len(ck), "| sessionid 있음:", "sessionid" in ck)
+
+          req = urllib.request.Request(
+              "https://www.instagram.com/api/v1/feed/saved/posts/?count=1",
+              headers={
+                  "Cookie": hdr,
+                  "User-Agent": UA,
+                  "X-IG-App-ID": "936619743392459",
+                  "X-CSRFToken": ck.get("csrftoken", ""),
+                  "Referer": "https://www.instagram.com/",
+              })
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  data = json.loads(r.read().decode("utf-8"))
+          except urllib.error.HTTPError as e:
+              body = e.read(4000).decode("utf-8", "replace")
+              marks = [m for m in ("checkpoint_required", "scraping_warning",
+                                   "challenge_required", "login_required") if m in body]
+              print("HTTP", e.code, "| 표시:", marks or "(해당 없음)",
+                    "| 본문 앞 120자:", body[:120])
+              sys.exit(1)
+          print("HTTP 200 | 항목 수:", len(data.get("items") or []),
+                "| more_available:", data.get("more_available"))
+          EOF
+
+  full:
+    if: github.event_name == 'schedule' || inputs.mode == 'full'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash   # pipefail 포함 — tee 앞 명령이 실패해도 단계가 실패로 잡힌다
+        working-directory: image_classifier
+    env:
+      IG_COOKIE: ${{ secrets.IG_COOKIE }}
+      LI_COOKIE: ${{ secrets.LI_COOKIE }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"   # 집 PC 검증 환경(3.13.5)과 맞춤
+          cache: pip
+          cache-dependency-path: image_classifier/requirements.txt
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: Claude Code CLI 설치 (분류 단계용)
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # Instagram 이 거부(HTTP 오류)하거나 로그인이 풀려 있으면 여기서 실패 → 아래에서 workflow 를 끈다.
+      - name: "[1] IG 증분 수집"
+        id: ig
+        run: |
+          python src/collect_cookie.py --platform instagram --incremental | tee "$RUNNER_TEMP/ig.log"
+          ! grep -qE "HTTP [0-9]+ -> 중단|로그인 만료" "$RUNNER_TEMP/ig.log"
+
+      - name: "[2] IG 신규 게시물 추출"
+        run: python src/extract_new_ig.py
+
+      - name: "[3] IG 이미지 다운로드 + posts.json 추가"
+        run: python src/download_posts.py data/.tmp/new_ig.json --append --prefix ig --referer https://www.instagram.com/
+
+      - name: "[3b] LinkedIn 증분 수집"
+        run: python src/collect_cookie.py --platform linkedin --incremental
+
+      - name: "[3c] LinkedIn 이미지 다운로드 + posts.json 추가"
+        run: python src/download_posts.py data/linkedin_posts.json --append --prefix li --referer https://www.linkedin.com/
+
+      - name: "[4] OCR (새 게시물만)"
+        run: python src/ocr_images.py
+
+      - name: "[5] IG 캡션/캐러셀 보강"
+        run: python src/ig_enrich_posts.py
+
+      - name: "[6] 분류 (claude -p, 미분류만)"
+        run: python src/run_classify.py
+
+      - name: "[7] Notion 반영"
+        run: python src/notion_sync_all.py
+
+      # 다음 실행의 증분 판단이 이 원장에 달려 있으므로 main 에 바로 올린다.
+      - name: 원장 commit·push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/posts.json data/instagram_posts.json
+          if git diff --cached --quiet; then
+            echo "원장 변경 없음"
+          else
+            git commit -m "data: daily ledger update"
+            git push
+          fi
+
+      - name: Instagram 거부 → 이 workflow 끄기 (사람이 확인 후 다시 켬)
+        if: failure() && steps.ig.outcome == 'failure'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow disable daily.yml --repo "${{ github.repository }}"

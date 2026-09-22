@@ -1,0 +1,74 @@
+{
+  "영어공부": {
+    "database_id": "9e5d11a21cb94d838bf71c297ee2ffc0",
+    "note": "language > English > Daily Learning > 영어 저장게시물"
+  },
+  "중국어공부": {
+    "database_id": "3325aa0acd6948e5b238ce0e83201ec8",
+    "note": "language > Chinese > Daily Learning > 중국어 저장게시물"
+  },
+  "맛집": {
+    "database_id": "8243e87d8d584564b73e09d12fc69da5",
+    "note": "맛집 > 맛집 리스트 (게시물→가게 1:N)"
+  },
+  "주식·투자": {
+    "database_id": "3a35be34-60ba-815a-8888-dc833dae30fb",
+    "note": "SNS정보분류 > 주식·투자 저장게시물"
+  },
+  "AI": {
+    "database_id": "3a35be34-60ba-811c-b7aa-fd3b2c43aea2",
+    "note": "SNS정보분류 > AI 저장게시물"
+  },
+  "운동·스포츠": {
+    "database_id": "3a35be34-60ba-8171-b676-fcfde9d8806d",
+    "note": "SNS정보분류 > 운동·스포츠 저장게시물"
+  },
+  "기타": {
+    "database_id": "3a45be34-60ba-818a-9f2e-fa8fe74e4aca",
+    "note": "SNS정보분류 > 기타 저장게시물"
+  },
+  "여행": {
+    "database_id": "3b35be34-60ba-8174-baa9-f5b8748441b4",
+    "note": "SNS정보분류 > 여행 저장게시물"
+  },
+  "밈·유머": {
+    "database_id": "3b35be34-60ba-8135-a475-d137dad14ac3",
+    "note": "SNS정보분류 > 밈·유머 저장게시물"
+  },
+  "영화·드라마·엔터": {
+    "database_id": "3b35be34-60ba-8151-82b6-c77d24f299ba",
+    "note": "SNS정보분류 > 영화·드라마·엔터 저장게시물"
+  },
+  "커리어·자기계발": {
+    "database_id": "3b35be34-60ba-8171-b81d-c2bdb238935b",
+    "note": "SNS정보분류 > 커리어·자기계발 저장게시물"
+  },
+  "건강·뷰티·패션": {
+    "database_id": "3b35be34-60ba-81da-b9eb-ed89741b00cf",
+    "note": "SNS정보분류 > 건강·뷰티·패션 저장게시물"
+  },
+  "IT·개발": {
+    "database_id": "3b35be34-60ba-81be-b3d3-f10112a3c421",
+    "note": "SNS정보분류 > IT·개발 저장게시물"
+  },
+  "문화·시사": {
+    "database_id": "3b35be34-60ba-81e4-9636-f02348927d0e",
+    "note": "SNS정보분류 > 문화·시사 저장게시물"
+  },
+  "데이터엔지니어링": {
+    "database_id": "3ba5be34-60ba-8186-b9bd-ff3d12832d3f",
+    "note": "SNS정보분류 > 데이터엔지니어링 (LinkedIn)"
+  },
+  "AI·LLM·에이전트": {
+    "database_id": "3ba5be34-60ba-81f1-b1e3-c42e239ee669",
+    "note": "SNS정보분류 > AI·LLM·에이전트 (LinkedIn)"
+  },
+  "채용·이직·커리어": {
+    "database_id": "3ba5be34-60ba-81b2-9f88-c05b31ce5e6a",
+    "note": "SNS정보분류 > 채용·이직·커리어 (LinkedIn)"
+  },
+  "제품·도구홍보": {
+    "database_id": "3ba5be34-60ba-815e-adbd-f2e4d8af9122",
+    "note": "SNS정보분류 > 제품·도구홍보 (LinkedIn)"
+  }
+}
