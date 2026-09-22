@@ -1,13 +1,12 @@
 name: daily-sns
 
-# 지금은 수동 실행만 한다. probe(각 플랫폼 요청 1회)가 통과하면 아래 schedule 을 추가한다.
-#   schedule:
-#     - cron: "0 22 * * *"   # 매일 07:00 KST (cron 은 UTC)
 on:
+  schedule:
+    - cron: "0 23 * * *"   # 매일 08:00 KST (cron 은 UTC 라 전날 23:00)
   workflow_dispatch:
     inputs:
       mode:
-        description: "probe = LinkedIn·Instagram 에 요청 1회씩만 / full = 전체 파이프라인"
+        description: "probe = 요청 1회씩만 / full = 전체 파이프라인"
         type: choice
         options: [probe, full]
         default: probe
@@ -162,10 +161,16 @@ jobs:
       - name: "[5] IG 캡션/캐러셀 보강"
         run: python src/ig_enrich_posts.py
 
+      # 이 두 단계는 실패해도 일단 진행한다. 원장을 올려서 수집·OCR 결과를 살리고,
+      # 맨 아래에서 실행 전체를 실패로 표시한다(그래야 GitHub 이 알려준다).
       - name: "[6] 분류 (claude -p, 미분류만)"
+        id: classify
+        continue-on-error: true
         run: python src/run_classify.py
 
       - name: "[7] Notion 반영"
+        id: notion
+        continue-on-error: true
         run: python src/notion_sync_all.py
 
       # 다음 실행의 증분 판단이 이 원장에 달려 있으므로 main 에 바로 올린다.
@@ -180,6 +185,16 @@ jobs:
             git commit -m "data: daily ledger update"
             git push
           fi
+
+      # 분류·Notion 은 위에서 실패해도 넘어가므로, 여기서 실행 전체를 실패로 표시한다.
+      - name: 분류·Notion 결과 확인
+        if: always()
+        working-directory: .
+        run: |
+          fail=0
+          if [ "${{ steps.classify.outcome }}" = "failure" ]; then echo "분류 실패"; fail=1; fi
+          if [ "${{ steps.notion.outcome }}" = "failure" ]; then echo "Notion 반영 실패"; fail=1; fi
+          exit $fail
 
       - name: Instagram 거부 → 이 workflow 끄기 (사람이 확인 후 다시 켬)
         if: failure() && steps.ig.outcome == 'failure'
