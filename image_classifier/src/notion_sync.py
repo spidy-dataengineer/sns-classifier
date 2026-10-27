@@ -167,14 +167,20 @@ RULES = [
     ("상황·미디어", ["여행", "주문", "레스토랑", "연애", "미드", "영화", "인사"]),
     ("표현·뉘앙스", ["표현", "원어민", "감정", "뉘앙스", "번역"]),
     ("회화", ["회화", "일상", "생활", "실전", "실용", "실생활"]),
+    ("발음·듣기", ["발음", "듣기", "리스닝", "억양", "connected speech"]),
+    ("시험", ["시험", "IELTS", "토익", "토플", "OPIc"]),
 ]
+# run_classify.py asks for one of these words as the first tag; it decides the type on its own
+FIRST_TAGS = {"문법", "단어", "구동사", "숙어", "슬랭", "비즈니스", "여행", "미드", "표현", "회화", "발음", "듣기", "시험"}
+FIRST_TAGS_ZH = {"여행", "발음", "단어", "표현", "회화"}
 STYLE_OPTIONS = ["everyday", "business", "advanced-nuance", "situational", "idiom", "slang", "academic"]
 
 ENGLISH_PROPS = {
     "유형": {"select": {"options": [{"name": n, "color": c} for n, c in [
         ("표현·뉘앙스", "blue"), ("구동사·숙어", "green"), ("비즈니스·직장", "orange"),
         ("슬랭·밈", "pink"), ("상황·미디어", "purple"), ("단어·어휘", "yellow"),
-        ("회화", "red"), ("문법", "brown"), ("기타", "gray")]]}},
+        ("회화", "red"), ("문법", "brown"), ("발음·듣기", "default"), ("시험", "default"),
+        ("기타", "gray")]]}},
     "한글설명": {"rich_text": {}},
     "태그": {"rich_text": {}},
     "자막있음": {"checkbox": {}},
@@ -188,7 +194,8 @@ ENGLISH_PROPS = {
 
 
 def pick_type(tags):
-    joined = " ".join(tags)
+    # newer posts carry the sub-type as the first tag; older posts are matched on all tags as before
+    joined = tags[0] if tags and tags[0] in FIRST_TAGS else " ".join(tags)
     for name, kws in RULES:
         if any(k in joined for k in kws):
             return name
@@ -266,7 +273,8 @@ CHINESE_PROPS = {
 
 
 def pick_type_zh(tags):
-    joined = " ".join(tags)
+    # same first-tag rule as pick_type
+    joined = tags[0] if tags and tags[0] in FIRST_TAGS_ZH else " ".join(tags)
     for name, kws in ZH_RULES:
         if any(k in joined for k in kws):
             return name
